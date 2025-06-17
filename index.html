@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ตารางคิวงาน | Nails Studio By C&N</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;500&display=swap');
+
+    body {
+      margin: 0;
+      font-family: 'Kanit', sans-serif;
+      background: linear-gradient(to right, #ffd6ec, #fbe8ff);
+    }
+
+    header {
+      background-color: #fff0f7;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      color: #c2185b;
+      font-weight: 500;
+    }
+
+    #calendar {
+      max-width: 1000px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+
+    .fc-button {
+      background-color: #d81b60 !important;
+      border: none !important;
+      color: white !important;
+      border-radius: 8px !important;
+      padding: 0.3em 1em !important;
+    }
+
+    .fc-button:hover {
+      background-color: #ad1457 !important;
+    }
+
+    .fc-toolbar-title {
+      color: #6a1b9a;
+      font-weight: bold;
+    }
+
+    .fc-day-today {
+      background-color: #fff3f8 !important;
+    }
+
+    .fc-event {
+      background-color: #f06292 !important;
+      border: none !important;
+      border-radius: 5px;
+    }
+
+    .admin-controls {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .admin-controls button {
+      margin: 0.3rem;
+    }
+
+    button.login-btn {
+      background: linear-gradient(to right, #ec407a, #ab47bc);
+      color: white;
+      border: none;
+      padding: 0.7em 1.5em;
+      border-radius: 30px;
+      font-size: 1rem;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    button.login-btn:hover {
+      background: linear-gradient(to right, #d81b60, #8e24aa);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    button#logoutBtn, button#clearBtn {
+      background-color: #ba68c8;
+      color: white;
+      border: none;
+      padding: 0.5em 1em;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    button#logoutBtn:hover, button#clearBtn:hover {
+      background-color: #9c27b0;
+    }
+  </style>
+
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD0_uY8swDAzxjGxAD3jqehnQXtf3PNkj4",
+      authDomain: "database-6bfe2.firebaseapp.com",
+      databaseURL: "https://database-6bfe2-default-rtdb.firebaseio.com",
+      projectId: "database-6bfe2", // ✅ แก้จาก Ydatabase-6bfe2
+      storageBucket: "database-6bfe2.appspot.com", // ✅ แก้ domain
+      messagingSenderId: "785373618624",
+      appId: "1:785373618624:web:455ccad46c7558ab9fe825",
+      measurementId: "G-2TTYFMNSWM"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
+</head>
+<body>
+  <header>
+    <h1>💅 ตารางคิวงาน Nails Studio By C&N</h1>
+  </header>
+
+  <div class="admin-controls">
+    <button class="login-btn" onclick="login()">
+      <i>🔐</i> เข้าสู่ระบบเจ้าของร้าน
+    </button>
+    <button onclick="logout()" style="display: none;" id="logoutBtn">🚪 ออกจากระบบ</button>
+    <button onclick="clearEvents()" style="display: none;" id="clearBtn">🗑 ล้างตารางคิวทั้งหมด</button>
+  </div>
+
+  <div id="calendar"></div>
+
+  <!-- FullCalendar JS -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <script>
+    let isAdmin = false;
+    const savedEvents = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const calendarEl = document.getElementById('calendar');
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'th',
+        slotMinTime: '14:00:00',
+        slotMaxTime: '23:00:00',
+        hiddenDays: [2],
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'timeGridWeek,dayGridMonth'
+        },
+        allDaySlot: false,
+        editable: false,
+        selectable: false,
+        events: savedEvents,
+        select: function(info) {
+          if (!isAdmin) return;
+          const title = prompt('กรุณาใส่ชื่องาน:');
+          if (title) {
+            const newEvent = {
+              id: Date.now(),
+              title,
+              start: info.startStr,
+              end: info.endStr
+            };
+            calendar.addEvent(newEvent);
+            saveEventToFirebase(calendar.getEvents());
+          }
+          calendar.unselect();
+        },
+        eventClick: function(info) {
+          if (!isAdmin) return;
+          if (confirm(`ลบงาน "${info.event.title}" ใช่หรือไม่?`)) {
+            info.event.remove();
+            saveEventToFirebase(calendar.getEvents());
+          }
+        },
+        eventChange: function() {
+          if (isAdmin) saveEventToFirebase(calendar.getEvents());
+        }
+      });
+
+      firebase.database().ref("events").once("value", snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          Object.values(data).forEach(event => savedEvents.push(event));
+          calendar.addEventSource(savedEvents);
+        }
+      });
+
+      calendar.render();
+      window.calendar = calendar;
+    });
+
+    function saveEventToFirebase(events) {
+      const saved = events.map(e => ({
+        id: e.id,
+        title: e.title,
+        start: e.startStr,
+        end: e.endStr
+      }));
+      firebase.database().ref("events").set(saved);
+    }
+
+    function login() {
+      const pass = prompt("กรุณาใส่รหัสผ่านเจ้าของร้าน:");
+      if (pass === "1234") {
+        isAdmin = true;
+        alert("เข้าสู่ระบบเรียบร้อย ✅");
+        enableAdminMode();
+      } else {
+        alert("รหัสผ่านไม่ถูกต้อง ❌");
+      }
+    }
+
+    function logout() {
+      isAdmin = false;
+      alert("ออกจากระบบเรียบร้อย");
+      disableAdminMode();
+    }
+
+    function enableAdminMode() {
+      const calendar = window.calendar;
+      calendar.setOption('editable', true);
+      calendar.setOption('selectable', true);
+      document.getElementById('clearBtn').style.display = 'inline-block';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+    }
+
+    function disableAdminMode() {
+      const calendar = window.calendar;
+      calendar.setOption('editable', false);
+      calendar.setOption('selectable', false);
+      document.getElementById('clearBtn').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'none';
+    }
+
+    function clearEvents() {
+      if (confirm("ต้องการลบตารางคิวทั้งหมดหรือไม่?")) {
+        firebase.database().ref("events").remove();
+        window.location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
